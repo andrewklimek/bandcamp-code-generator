@@ -25,12 +25,24 @@ function bccodes_generate( $a )
 
 	if ( !empty( $_POST['releases'] ) )
 	{
+		$qty = !empty( $_POST['qty'] ) ? $_POST['qty'] : 1;
+
 		$html .= "<textarea style='height:20em;width:100%' readonly onfocus='this.select()'>";
 		foreach( $_POST['releases'] as $r )
 		{
-			$code_row = $wpdb->get_row("SELECT * FROM {$wpdb->prefix}ssbccodes WHERE album='{$r}' LIMIT 1");
-			$wpdb->delete( "{$wpdb->prefix}ssbccodes", [ 'id' => $code_row->id ] );
-			$html .= "{$code_row->artist}\n{$code_row->album}\nhttps://bandcamp.com/yum?code={$code_row->code}\n\n";
+			$result = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}ssbccodes WHERE album='{$r}' LIMIT {$qty}");
+			$html .= "{$result[0]->artist}\n{$result[0]->album}\n";
+
+			$url = ( $qty > 1 ) ? "" : "https://bandcamp.com/yum?code=";
+
+			foreach( $result as $row ) {
+				$wpdb->delete( "{$wpdb->prefix}ssbccodes", [ 'id' => $row->id ] );
+				$html .= "{$url}{$row->code}\n";
+			}
+			
+			$html .= "\n";
+
+			$html .= ( $qty > 1 ) ? "https://bandcamp.com/yum" : "";
 		}
 		$html .= "</textarea><br>";
 	}
@@ -39,7 +51,8 @@ function bccodes_generate( $a )
 	$releases = $wpdb->get_results("SELECT artist, album, cat FROM {$wpdb->prefix}ssbccodes GROUP BY album ORDER BY id DESC");
 
 	$html .= "<form id=pick-releases method=post>";
-	$html .= "<p><button>submit</button></p>";
+	$html .= "<p><button>get codes</button></p>";
+	$html .= "<p>more than 1 each? <input type=number name=qty></p>";
 	$html .= "<input type=checkbox onclick=\"var c=this.checked;document.querySelectorAll('#pick-releases input').forEach(function(e){e.checked=c});\"> all<br>";
 	$i = 1;
 	foreach ( $releases as $release )
@@ -48,7 +61,7 @@ function bccodes_generate( $a )
 		$html .= "<label for=release-{$i}><input type=checkbox id=release-{$i} name=releases[{$i}] value='{$release->album}'{$checked}> {$release->album} ({$release->artist})</label><br>";
 		++$i;
 	}
-	$html .= "<p><button>submit</button>";
+	$html .= "<p><button>get codes</button>";
 
 	$html .= "</form>";
 
